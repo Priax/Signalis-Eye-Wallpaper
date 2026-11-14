@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Id": "signaliseyecursor",
+        "Name": "Signalis Eye Cursor",
+        "Description": "Envoie la position du curseur au fond d'écran Signalis",
+        "Authors": [{ "Name": "Priax" }],
+        "Version": "1.0",
+        "License": "MIT",
+        "EnabledByDefault": false
+    },
+    "X-Plasma-API": "declarativescript",
+    "X-Plasma-MainScript": "ui/main.qml",
+    "KPackageStructure": "KWin/Script"
+}

@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "org.priax.signaliseye",
+        "Name": "Signalis Eye",
+        "Description": "L'œil du menu de SIGNALIS",
+        "Authors": [{ "Name": "Priax" }],
+        "License": "MIT",
+        "Version": "2.0"
+    },
+    "KPackageStructure": "Plasma/Wallpaper",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

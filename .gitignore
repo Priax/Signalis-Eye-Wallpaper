@@ -1,0 +1,8 @@
+native/wallpaper/contents/models/
+native/wallpaper/contents/textures/
+
+build/
+native/wallpaper/contents/shaders/*.qsb
+__pycache__/
+
+.cache/
