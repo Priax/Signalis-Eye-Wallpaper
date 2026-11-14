@@ -1,8 +1,11 @@
 #!/usr/bin/python3
 import hashlib
+import html
 import json
 import os
 import pathlib
+import platform
+import re
 import shutil
 import socket
 import subprocess
@@ -17,39 +20,118 @@ ROOT = pathlib.Path(__file__).resolve().parent
 CONTENTS = ROOT / 'native/wallpaper/contents'
 ARGS = [a for a in sys.argv[1:] if a != '--if-missing']
 IF_MISSING = '--if-missing' in sys.argv[1:]
-GAME = pathlib.Path(ARGS[0] if ARGS else '~/.local/share/Steam/steamapps/common/SIGNALIS').expanduser()
 
-ASSETRIPPER_URL = ('https://github.com/AssetRipper/AssetRipper/releases/download/2.0.0/'
-                   'AssetRipper_linux_x64.tar.xz')
-ASSETRIPPER_SHA256 = '6f5d4352d36795b944243eb3ec790ec37dbca6d6756e52605bc8616e042d384e'
-BALSAM = '/usr/lib64/qt6/bin/balsam'
+ASSETRIPPER_RELEASE = 'https://github.com/AssetRipper/AssetRipper/releases/download/2.0.0/'
+ASSETRIPPER_BUILDS = {
+    'x86_64': ('AssetRipper_linux_x64.tar.xz',
+               '6f5d4352d36795b944243eb3ec790ec37dbca6d6756e52605bc8616e042d384e'),
+    'aarch64': ('AssetRipper_linux_arm64.tar.xz',
+                '8031752621d7fb27addab6108bad8bfbd43546bbb07b36912a987dfb4029c914'),
+}
+MACHINE_ALIASES = {'amd64': 'x86_64', 'arm64': 'aarch64'}
 
-COLLECTION = 'sharedassets5.assets'
+STEAM_ROOTS = [
+    '~/.local/share/Steam',
+    '~/.steam/steam',
+    '~/.var/app/com.valvesoftware.Steam/.local/share/Steam',
+    '~/snap/steam/common/.local/share/Steam',
+]
+GAME_DIR = 'SIGNALIS'
+
+PREFERRED_COLLECTION = 'sharedassets5.assets'
 MESHES = {
-    35: ('EyeShine', {0: 'EyeShine_0'}),
-    37: ('FacePlane', {0: 'FacePlane_0'}),
-    38: ('EyeWhite', {0: 'EyeWhite_0'}),
-    41: ('HairPlane', {0: 'HairPlane_0'}),
-    42: ('EyeWhiteBack', {0: 'EyeWhiteBack_0'}),
-    43: ('FaceLid_Half', {0: 'FaceLid_Half_0'}),
-    44: ('FaceLid', {0: 'FaceLid_0'}),
-    45: ('FaceLid_Down', {0: 'FaceLid_Down_0'}),
-    46: ('FaceLid_Down_Transition', {0: 'FaceLid_Down_Transition_0'}),
-    47: ('EyePupil_noArmature', {0: 'EyePupil_noArmature_0', 1: 'EyePupil_noArmature_1'}),
+    'EyeShine': {0: 'EyeShine_0'},
+    'FacePlane': {0: 'FacePlane_0'},
+    'EyeWhite': {0: 'EyeWhite_0'},
+    'HairPlane': {0: 'HairPlane_0'},
+    'EyeWhiteBack': {0: 'EyeWhiteBack_0'},
+    'FaceLid_Half': {0: 'FaceLid_Half_0'},
+    'FaceLid': {0: 'FaceLid_0'},
+    'FaceLid_Down': {0: 'FaceLid_Down_0'},
+    'FaceLid_Down_Transition': {0: 'FaceLid_Down_Transition_0'},
+    'EyePupil_noArmature': {0: 'EyePupil_noArmature_0', 1: 'EyePupil_noArmature_1'},
 }
 TEXTURES = {
-    18: ('eyecloseup_eyeWhite', 'eyecloseup_eyeWhite.png'),
-    20: ('eyecloseup_hair', 'eyecloseup_hair.png'),
-    23: ('eyecloseup_shine', 'eyecloseup_shine.png'),
-    27: ('eyecloseup_face', 'eyecloseup_face.png'),
-    28: ('eyecloseup_lid', 'eyecloseup_lid.png'),
-    29: ('eyecloseup_pupil', 'eyecloseup_pupil.png'),
-    30: ('Circular_light_blue', 'circular_light_blue.png'),
+    'eyecloseup_eyeWhite': 'eyecloseup_eyeWhite.png',
+    'eyecloseup_hair': 'eyecloseup_hair.png',
+    'eyecloseup_shine': 'eyecloseup_shine.png',
+    'eyecloseup_face': 'eyecloseup_face.png',
+    'eyecloseup_lid': 'eyecloseup_lid.png',
+    'eyecloseup_pupil': 'eyecloseup_pupil.png',
+    'Circular_light_blue': 'circular_light_blue.png',
 }
+
+ROW = re.compile(r'<tr data-class="([^"]+)"><td>(-?\d+)</td><td>[^<]*</td><td><a [^>]*>([^<]*)</a>')
 
 
 def fail(msg):
     sys.exit(f'extract-assets: {msg}')
+
+
+def find_qt_tool(name):
+    for candidate in (f'{name}6', f'{name}-qt6'):
+        path = shutil.which(candidate)
+        if path:
+            return path
+    qtpaths = shutil.which('qtpaths6')
+    if qtpaths:
+        for key in ('QT_HOST_BINS', 'QT_INSTALL_BINS', 'QT_HOST_LIBEXECS'):
+            result = subprocess.run([qtpaths, '--query', key], capture_output=True, text=True)
+            candidate = pathlib.Path(result.stdout.strip()) / name
+            if result.stdout.strip() and os.access(candidate, os.X_OK):
+                return str(candidate)
+    return shutil.which(name)
+
+
+def steam_libraries():
+    seen = set()
+    for root in STEAM_ROOTS:
+        root = pathlib.Path(root).expanduser()
+        libraries = [root]
+        vdf = root / 'steamapps/libraryfolders.vdf'
+        if vdf.is_file():
+            text = vdf.read_text(errors='replace')
+            libraries += [pathlib.Path(p.replace('\\\\', '\\')) for p in re.findall(r'"path"\s+"([^"]+)"', text)]
+        for library in libraries:
+            key = os.path.realpath(library)
+            if key not in seen:
+                seen.add(key)
+                yield library
+
+
+def find_game():
+    if ARGS:
+        return pathlib.Path(ARGS[0]).expanduser()
+    if os.environ.get('SIGNALIS_DIR'):
+        return pathlib.Path(os.environ['SIGNALIS_DIR']).expanduser()
+    for library in steam_libraries():
+        game = library / 'steamapps/common' / GAME_DIR
+        if (game / 'SIGNALIS_Data').is_dir():
+            return game
+    fail('SIGNALIS introuvable dans les bibliothèques Steam: donne son dossier en argument ou via SIGNALIS_DIR')
+
+
+def assetripper_build():
+    machine = platform.machine().lower()
+    machine = MACHINE_ALIASES.get(machine, machine)
+    if machine not in ASSETRIPPER_BUILDS:
+        fail(f'processeur {machine} non pris en charge par AssetRipper')
+    return ASSETRIPPER_BUILDS[machine]
+
+
+def safe_extract(archive, dest):
+    with tarfile.open(archive) as t:
+        try:
+            t.extractall(dest, filter='data')
+            return
+        except TypeError:
+            pass
+        root = os.path.realpath(dest)
+        for member in t.getmembers():
+            target = os.path.realpath(os.path.join(dest, member.name))
+            if os.path.commonpath([root, target]) != root or not (member.isfile() or member.isdir()):
+                fail(f'archive AssetRipper suspecte: {member.name}')
+        t.extractall(dest)
 
 
 def free_port():
@@ -60,19 +142,19 @@ def free_port():
 
 class Ripper:
     def __init__(self, workdir):
-        archive = workdir / 'ar.tar.xz'
-        print('Téléchargement d\'AssetRipper 2.0.0…')
-        urllib.request.urlretrieve(ASSETRIPPER_URL, archive)
-        if hashlib.sha256(archive.read_bytes()).hexdigest() != ASSETRIPPER_SHA256:
+        filename, sha256 = assetripper_build()
+        archive = workdir / filename
+        print(f'Téléchargement d\'AssetRipper 2.0.0 ({filename})…')
+        urllib.request.urlretrieve(ASSETRIPPER_RELEASE + filename, archive)
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != sha256:
             fail('empreinte SHA-256 d\'AssetRipper inattendue, archive refusée')
-        with tarfile.open(archive) as t:
-            t.extractall(workdir / 'ar', filter='data')
+        safe_extract(archive, workdir / 'ar')
         exe = workdir / 'ar/AssetRipper.GUI.Free'
         exe.chmod(0o755)
-        self.base = f'http://127.0.0.1:{free_port()}'
+        port = free_port()
+        self.base = f'http://127.0.0.1:{port}'
         self.proc = subprocess.Popen(
-            [str(exe), '--headless', '--port', self.base.rsplit(':', 1)[1],
-             '--log-path', str(workdir / 'ar.log')],
+            [str(exe), '--headless', '--port', str(port), '--log-path', str(workdir / 'ar.log')],
             cwd=workdir / 'ar', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for _ in range(60):
             try:
@@ -88,7 +170,7 @@ class Ripper:
         self.proc.wait(timeout=30)
 
     def load(self, folder):
-        print('Lecture du jeu (une à deux minutes)…')
+        print(f'Lecture du jeu dans {folder} (une à deux minutes)…')
         data = urllib.parse.urlencode({'path': str(folder)}).encode()
         urllib.request.urlopen(self.base + '/LoadFolder', data=data, timeout=900)
 
@@ -96,43 +178,55 @@ class Ripper:
         query = urllib.parse.urlencode(params)
         return urllib.request.urlopen(f'{self.base}{path}?{query}', timeout=120).read()
 
-    def find_collection(self, name):
-        for i in range(200):
-            p = json.dumps({'B': {'P': [0]}, 'I': i}, separators=(',', ':'))
+    def collections(self):
+        found = []
+        for i in range(500):
+            path = json.dumps({'B': {'P': [0]}, 'I': i}, separators=(',', ':'))
             try:
-                html = self.get('/Collections/View', Path=p).decode()
+                page = self.get('/Collections/View', Path=path).decode()
             except OSError:
-                continue
-            if f'<title>{name}</title>' in html:
-                return i
-        fail(f'collection {name} introuvable: le jeu a-t-il changé?')
+                break
+            title = re.search(r'<title>([^<]*)</title>', page)
+            rows = [(cls, int(pid), html.unescape(name)) for cls, pid, name in ROW.findall(page)]
+            found.append((i, title.group(1) if title else '', rows))
+        return found
 
     def asset(self, coll, pid, kind, **extra):
-        p = json.dumps({'C': {'B': {'P': [0]}, 'I': coll}, 'D': pid}, separators=(',', ':'))
-        return self.get(f'/Assets/{kind}', Path=p, **extra)
+        path = json.dumps({'C': {'B': {'P': [0]}, 'I': coll}, 'D': pid}, separators=(',', ':'))
+        return self.get(f'/Assets/{kind}', Path=path, **extra)
 
-    def check_name(self, coll, pid, expected):
-        yaml = self.asset(coll, pid, 'Yaml').decode()
-        name = next((l.split(':', 1)[1].strip() for l in yaml.splitlines() if l.strip().startswith('m_Name:')), None)
-        if name != expected:
-            fail(f'asset {pid}: attendu « {expected} », trouvé « {name} »: le jeu a-t-il changé?')
+
+def locate(collections, cls, name):
+    matches = [(i, pid) for i, title, rows in collections for c, pid, n in rows if c == cls and n == name]
+    preferred = [(i, pid) for i, pid in matches if collections[i][1] == PREFERRED_COLLECTION]
+    if len(preferred) == 1:
+        return preferred[0]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        fail(f'{cls} « {name} » introuvable: le jeu a-t-il changé?')
+    fail(f'{cls} « {name} » trouvé {len(matches)} fois, impossible de choisir')
 
 
 def expected_files():
-    for _, outputs in MESHES.values():
+    for outputs in MESHES.values():
         for dest in outputs.values():
             yield CONTENTS / 'models' / f'{dest}.mesh'
-    for _, dest in TEXTURES.values():
+    for dest in TEXTURES.values():
         yield CONTENTS / 'textures' / dest
 
 
 def main():
     if IF_MISSING and all(f.exists() for f in expected_files()):
         return
-    if not (GAME / 'SIGNALIS_Data').is_dir():
-        fail(f'jeu introuvable dans {GAME} (donne le dossier en argument)')
-    if not os.access(BALSAM, os.X_OK):
-        fail(f'{BALSAM} manquant: installe qt6-qtquick3d-devel')
+    if sys.version_info < (3, 8):
+        fail('Python 3.8 ou plus récent requis')
+    game = find_game()
+    if not (game / 'SIGNALIS_Data').is_dir():
+        fail(f'{game} ne contient pas SIGNALIS_Data')
+    balsam = find_qt_tool('balsam')
+    if not balsam:
+        fail('balsam (Qt 6 Quick 3D) introuvable: installe le paquet de développement de Qt Quick 3D')
 
     cache = pathlib.Path(os.environ.get('XDG_CACHE_HOME', '~/.cache')).expanduser()
     cache.mkdir(parents=True, exist_ok=True)
@@ -140,17 +234,17 @@ def main():
         tmp = pathlib.Path(tmp)
         ripper = Ripper(tmp)
         try:
-            ripper.load(GAME)
-            coll = ripper.find_collection(COLLECTION)
+            ripper.load(game)
+            collections = ripper.collections()
 
             models = CONTENTS / 'models'
             models.mkdir(parents=True, exist_ok=True)
-            for pid, (name, outputs) in MESHES.items():
-                ripper.check_name(coll, pid, name)
+            for name, outputs in MESHES.items():
+                coll, pid = locate(collections, 'Mesh', name)
                 glb = tmp / f'{name}.glb'
                 glb.write_bytes(ripper.asset(coll, pid, 'Model.glb'))
                 out = tmp / f'balsam_{name}'
-                subprocess.run([BALSAM, '-o', str(out), str(glb)], check=True,
+                subprocess.run([balsam, '-o', str(out), str(glb)], check=True,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 for sub, dest in outputs.items():
                     src = out / f'meshes/meshes_{sub}__mesh.mesh'
@@ -161,8 +255,8 @@ def main():
 
             textures = CONTENTS / 'textures'
             textures.mkdir(parents=True, exist_ok=True)
-            for pid, (name, dest) in TEXTURES.items():
-                ripper.check_name(coll, pid, name)
+            for name, dest in TEXTURES.items():
+                coll, pid = locate(collections, 'Texture2D', name)
                 (textures / dest).write_bytes(ripper.asset(coll, pid, 'Image', Extension='png'))
                 print(f'  texture {name}')
         finally:

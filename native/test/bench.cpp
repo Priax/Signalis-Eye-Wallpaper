@@ -1,5 +1,4 @@
 // bench <moving|idle> <secondes> <fps> [Scene.qml] [fps au repos]
-#include <QDir>
 #include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QQmlEngine>
@@ -27,8 +26,7 @@ int main(int argc, char **argv)
     const int seconds = a.value(1, QStringLiteral("10")).toInt();
 
     QQuickView view;
-    view.engine()->addImportPath(QDir::homePath() +
-                                 QStringLiteral("/.local/lib64/qml"));
+    view.engine()->addImportPath(QStringLiteral(PLUGIN_IMPORT_PATH));
     view.setResizeMode(QQuickView::SizeRootObjectToView);
     view.resize(1536, 864);
     view.setSource(QUrl::fromLocalFile(a.value(3, QStringLiteral(SCENE_PATH))));

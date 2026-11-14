@@ -12,14 +12,21 @@ Ce dépôt ne contient **aucun fichier du jeu**.
 Vous pouvez les extraire via le script `extract-assets.py`.
 Il faut donc posséder SIGNALIS.
 
-## Prérequis (Fedora)
+## Prérequis
+
+KDE Plasma 6 sous Wayland, Python 3.8 ou plus récent, CMake, un compilateur C++, et les paquets
+de développement Qt 6 pour Qml et Quick 3D.
+
+Sous Fedora:
 
 ```
 sudo dnf install cmake gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtquick3d-devel
 ```
 
-Plus le jeu, installé via Steam (par défaut dans `~/.local/share/Steam/steamapps/common/SIGNALIS`,
-sinon le préciser avec `SIGNALIS_DIR=...`).
+Processeurs pris en charge par l'extraction: x86-64 et ARM 64 bits.
+
+Le jeu est cherché dans toutes les bibliothèques Steam, y compris Steam en Flatpak. S'il est
+installé ailleurs, indiquez son dossier via: `SIGNALIS_DIR=/chemin/vers/SIGNALIS ./install.sh`.
 
 ## Installation
 
@@ -47,7 +54,7 @@ Le script KWin, lui, est rechargé directement par `install.sh`.
 - `kwin-script/`: script KWin qui envoie la position du curseur et les écrans couverts
 - `native/test/`: outils hors Plasma, `grab` (capture) et `bench` (mesure CPU),
   compilés avec `cmake -S . -B build && cmake --build build`, qui produit aussi
-  `build/compile_commands.json` pour clangd
+  `build/compile_commands.json` pour clangd.
 
 ## Réglages
 

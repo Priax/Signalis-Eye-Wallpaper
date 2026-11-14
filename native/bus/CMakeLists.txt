@@ -8,6 +8,7 @@ qt_add_qml_module(signaliseyebus
     URI SignalisEye
     VERSION 1.0
     PLUGIN_TARGET signaliseyebus
+    OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/SignalisEye
     DEPENDENCIES QtQuick
     SOURCES eyebus.h eyebus.cpp eyecontroller.h eyecontroller.cpp
 )

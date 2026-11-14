@@ -9,3 +9,9 @@ target_link_libraries(grab PRIVATE Qt6::Gui Qt6::Quick)
 qt_add_executable(bench bench.cpp)
 target_compile_definitions(bench PRIVATE SCENE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../wallpaper/contents/ui/Scene.qml")
 target_link_libraries(bench PRIVATE Qt6::Gui Qt6::Quick)
+
+foreach(tool grab bench)
+    target_compile_definitions(${tool} PRIVATE
+        PLUGIN_IMPORT_PATH="${CMAKE_BINARY_DIR}/native/bus")
+    add_dependencies(${tool} signaliseyebus)
+endforeach()

@@ -1,5 +1,4 @@
 // grab <sortie.png> <cx> <cy> [raw]
-#include <QDir>
 #include <QGuiApplication>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -12,8 +11,7 @@ int main(int argc, char **argv)
     QGuiApplication app(argc, argv);
     const QStringList a = app.arguments().mid(1);
     QQuickView view;
-    view.engine()->addImportPath(QDir::homePath() +
-                                 QStringLiteral("/.local/lib64/qml"));
+    view.engine()->addImportPath(QStringLiteral(PLUGIN_IMPORT_PATH));
     view.setResizeMode(QQuickView::SizeRootObjectToView);
     view.resize(1280, 720);
     view.setSource(QUrl::fromLocalFile(QStringLiteral(SCENE_PATH)));
