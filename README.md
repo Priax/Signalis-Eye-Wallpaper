@@ -6,8 +6,6 @@ La scène est reconstruite en Qt Quick 3D à partir des modèles et textures du 
 de la scène `MainMenu` (caméra, mouvements de l'œil, ondulation des cheveux lue dans le shader du jeu,
 vignette, luminosité). Le rendu s'arrête quand le bureau est caché par des fenêtres ou que l'écran est verrouillé.
 
-[![Demo of the Signalis Eye Wallpaper](Demo_Signalis_Wallpaper.webpm)]
-
 ## Assets
 
 Ce dépôt ne contient **aucun fichier du jeu**.
