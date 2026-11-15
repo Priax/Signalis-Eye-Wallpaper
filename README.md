@@ -6,6 +6,8 @@ La scène est reconstruite en Qt Quick 3D à partir des modèles et textures du 
 de la scène `MainMenu` (caméra, mouvements de l'œil, ondulation des cheveux lue dans le shader du jeu,
 vignette, luminosité). Le rendu s'arrête quand le bureau est caché par des fenêtres ou que l'écran est verrouillé.
 
+[Demo_Signalis_Wallpaper.webm](https://github.com/user-attachments/assets/6d2547fc-d93b-44e2-86d6-830e4e1ebe4e)
+
 ## Assets
 
 Ce dépôt ne contient **aucun fichier du jeu**.
