@@ -55,6 +55,7 @@ class EyeController : public QObject {
     }
 
     void setCursor(QPointF c);
+    void setCursorSilently(QPointF c);
 
     bool paused() const
     {
@@ -192,7 +193,8 @@ class EyeController : public QObject {
     void step(double dt);
     Lid updateLid(double t);
     bool visiblyDifferent(const Frame &a, const Frame &b) const;
-    void updateFromBus();
+    void updateFromBus(bool moved = false);
+    bool m_gotBusCursor = false;
     void reschedule();
     bool idle() const;
 

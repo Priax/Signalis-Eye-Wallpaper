@@ -102,8 +102,9 @@ void EyeBus::watchShowingDesktop(QDBusConnection &bus)
 void EyeBus::Cursor(int x, int y)
 {
     const QPoint p(x, y);
-    if (p == m_cursor)
+    if (m_hasCursor && p == m_cursor)
         return;
+    m_hasCursor = true;
     m_cursor = p;
     Q_EMIT cursorChanged();
 }

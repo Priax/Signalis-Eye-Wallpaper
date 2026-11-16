@@ -97,6 +97,14 @@ void EyeController::setCursor(QPointF c)
     Q_EMIT cursorChanged();
 }
 
+void EyeController::setCursorSilently(QPointF c)
+{
+    if (c == m_cursor)
+        return;
+    m_cursor = c;
+    Q_EMIT cursorChanged();
+}
+
 void EyeController::setPaused(bool p)
 {
     if (p == m_paused)
@@ -114,26 +122,30 @@ void EyeController::setFollowBus(bool f)
     if (f) {
         auto *bus = EyeBus::instance();
         connect(bus, &EyeBus::cursorChanged, this,
-                &EyeController::updateFromBus);
+                [this] { updateFromBus(true); });
         connect(bus, &EyeBus::coveredChanged, this,
-                &EyeController::updateFromBus);
-        connect(bus, &EyeBus::lockedChanged, this,
-                &EyeController::updateFromBus);
+                [this] { updateFromBus(); });
+        connect(bus, &EyeBus::lockedChanged, this, [this] { updateFromBus(); });
         connect(this, &EyeController::screenGeometryChanged, this,
-                &EyeController::updateFromBus);
+                [this] { updateFromBus(); });
         updateFromBus();
     }
     Q_EMIT followBusChanged();
 }
 
-void EyeController::updateFromBus()
+void EyeController::updateFromBus(bool moved)
 {
     const auto *bus = EyeBus::instance();
-    if (m_screen.width() > 0 && m_screen.height() > 0) {
+    if (bus->hasCursor() && m_screen.width() > 0 && m_screen.height() > 0) {
         const QPoint p = bus->cursor();
         const double x = (p.x() - m_screen.x()) / m_screen.width();
         const double y = (p.y() - m_screen.y()) / m_screen.height();
-        setCursor(QPointF(x, y));
+        const bool first = !m_gotBusCursor;
+        m_gotBusCursor = true;
+        if (moved && !first)
+            setCursor(QPointF(x, y));
+        else
+            setCursorSilently(QPointF(x, y));
     }
     const QString key = QStringLiteral("%1,%2,%3,%4")
                             .arg(m_screen.x())

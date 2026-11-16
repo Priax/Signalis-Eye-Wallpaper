@@ -30,6 +30,11 @@ class EyeBus : public QObject {
         return m_cursor;
     }
 
+    bool hasCursor() const
+    {
+        return m_hasCursor;
+    }
+
     QStringList coveredScreens() const
     {
         return m_showingDesktop ? QStringList() : m_covered;
@@ -62,6 +67,7 @@ class EyeBus : public QObject {
     void setCovered(const QStringList &screens);
 
     QPoint m_cursor;
+    bool m_hasCursor = false;
     QStringList m_covered;
     bool m_locked = false;
     bool m_showingDesktop = false;
