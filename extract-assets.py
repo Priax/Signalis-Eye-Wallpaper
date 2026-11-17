@@ -50,6 +50,7 @@ MESHES = {
     'FaceLid_Down': {0: 'FaceLid_Down_0'},
     'FaceLid_Down_Transition': {0: 'FaceLid_Down_Transition_0'},
     'EyePupil_noArmature': {0: 'EyePupil_noArmature_0', 1: 'EyePupil_noArmature_1'},
+    'EyePupil_Trans': {0: 'EyePupil_Trans_0'},
 }
 TEXTURES = {
     'eyecloseup_eyeWhite': 'eyecloseup_eyeWhite.png',

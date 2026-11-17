@@ -95,6 +95,7 @@ Item {
                             property real range: 43.94
                             property real intensity: 94.2
                             property real diffuse: 0.233472
+                            property real ndlFloor: 0.25
                             shadingMode: CustomMaterial.Unshaded
                             vertexShader: "../shaders/pupil.vert"
                             fragmentShader: "../shaders/pupil.frag"
@@ -105,6 +106,16 @@ Item {
                         source: "../models/EyePupil_noArmature_0.mesh"
                         materials: Transparent { map.texture: texPupil }
                         depthBias: 1000
+                    }
+                    Mesh {
+                        rotation: Qt.quaternion(0, 0, 0.7071068, -0.7071068)
+                        source: "../models/EyePupil_Trans_0.mesh"
+                        materials: Transparent {
+                            map.texture: texPupil
+                            holeMode: 1
+                            holeCenter: ctrl.holeCenter
+                            holeDir: ctrl.holeDir
+                        }
                     }
                 }
 
